@@ -25,8 +25,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // This will now be handled by your backend, but you can keep a session check
-    // if you implement a /api/auth/session endpoint
     setLoading(false);
   }, []);
 
@@ -68,7 +66,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateProfile = async (updates: { display_name?: string; avatar_url?: string }) => {
-    // This would require a new endpoint, e.g., /api/profile
     console.log("Update profile not implemented on the backend yet.", updates);
   };
 

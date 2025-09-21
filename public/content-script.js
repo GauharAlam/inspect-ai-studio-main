@@ -1,4 +1,4 @@
-// content-script.js
+// public/content-script.js
 
 let inspectorEnabled = false;
 let highlightElement = null;
@@ -30,16 +30,16 @@ function updateHighlight(element) {
     }
     highlightElement = element;
     if (highlightElement) {
-        highlightElement.style.outline = '2px dashed #0ea5e9'; // A nice blue color
+        highlightElement.style.outline = '2px dashed #0ea5e9';
     }
 }
 
-document.addEventListener('mouseover', (event) => {
+function handleMouseOver(event) {
     if (!inspectorEnabled) return;
     updateHighlight(event.target);
-});
+}
 
-document.addEventListener('click', (event) => {
+function handleClick(event) {
     if (!inspectorEnabled) return;
 
     event.preventDefault();
@@ -47,21 +47,39 @@ document.addEventListener('click', (event) => {
     
     const info = getElementInfo(event.target);
     if (info) {
-        // Send the element info to the background script
         chrome.runtime.sendMessage({ type: 'elementInfo', data: info });
     }
-}, true);
+    
+    // Deactivate after selection
+    inspectorEnabled = false;
+    updateHighlight(null); // Clear highlight
+    chrome.runtime.sendMessage({ type: 'inspectorToggledOff' });
+
+    // Remove the click listener so it only fires once per activation
+    document.removeEventListener('click', handleClick, true);
+}
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.toggleInspector) {
         inspectorEnabled = !inspectorEnabled;
         
-        if (!inspectorEnabled && highlightElement) {
-            highlightElement.style.outline = '';
+        if (inspectorEnabled) {
+            // Add the click listener ONLY when activated
+            document.addEventListener('click', handleClick, true);
+        } else {
+            // Clean up when deactivated
+            if (highlightElement) {
+                highlightElement.style.outline = '';
+            }
             highlightElement = null;
+            document.removeEventListener('click', handleClick, true);
         }
-        // Let the popup know the state has changed
+        
         sendResponse({ inspectorEnabled: inspectorEnabled });
     }
+    return true; // Keep the message channel open for async response
 });
+
+// The mouseover listener can be active all the time
+document.addEventListener('mouseover', handleMouseOver, true);

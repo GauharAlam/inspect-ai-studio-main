@@ -1,49 +1,60 @@
-// background.js
+// public/background.js
 
-// A simple in-memory store for the active tab and its data
-let activeTabId = null;
 let inspectedElementData = null;
+let inspectorStatusByTab = {};
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('AI CSS Inspector installed.');
-});
-
-// Listen for messages from the popup or content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // Message from content script with element data
-  if (request.type === 'elementInfo') {
-    inspectedElementData = request.data;
-    // Optional: Forward to popup if it's open
-    chrome.runtime.sendMessage({ type: 'update', data: inspectedElementData });
-  }
+  const tabId = sender.tab?.id;
 
-  // Message from popup asking for the latest data
-  if (request.type === 'getElementData') {
-    sendResponse(inspectedElementData);
-  }
-
-  // Message from popup to toggle the inspector on the active tab
-  if (request.type === 'toggleInspector') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].id) {
-        activeTabId = tabs[0].id;
-        chrome.tabs.sendMessage(activeTabId, { toggleInspector: true });
-        // Clear old data when toggling
-        inspectedElementData = null;
-        sendResponse({ success: true, tabId: activeTabId });
-      } else {
-        sendResponse({ success: false, error: "No active tab found." });
+  // This is an async listener, so return true.
+  (async () => {
+    if (request.type === 'elementInfo') {
+      inspectedElementData = request.data;
+      await chrome.runtime.sendMessage({ type: 'update', data: inspectedElementData });
+    } 
+    
+    else if (request.type === 'toggleInspector') {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.id) {
+        try {
+          const response = await chrome.tabs.sendMessage(tab.id, { toggleInspector: true });
+          inspectorStatusByTab[tab.id] = response.inspectorEnabled;
+          if (!response.inspectorEnabled) {
+            inspectedElementData = null;
+          }
+          await chrome.runtime.sendMessage({ type: 'inspectorToggled', data: { isEnabled: response.inspectorEnabled } });
+        } catch (e) {
+          console.warn("Could not toggle inspector. Is the content script injected?", e.message);
+        }
       }
-    });
-    // Return true to indicate you wish to send a response asynchronously
-    return true;
-  }
+    } 
+    
+    else if (request.type === 'getInspectorStatus') {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && tab.id) {
+            sendResponse({ 
+                isEnabled: inspectorStatusByTab[tab.id] || false,
+                lastData: inspectedElementData 
+            });
+        }
+    }
+    
+    else if (request.type === 'inspectorToggledOff') {
+        if(tabId) inspectorStatusByTab[tabId] = false;
+        await chrome.runtime.sendMessage({ type: 'inspectorToggled', data: { isEnabled: false } });
+    }
+
+  })();
+  
+  return true;
 });
 
-// Clean up when a tab is closed
+// Clear status when a tab is closed or reloaded
 chrome.tabs.onRemoved.addListener((tabId) => {
-  if (tabId === activeTabId) {
-    activeTabId = null;
-    inspectedElementData = null;
-  }
+  delete inspectorStatusByTab[tabId];
+});
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === 'loading') {
+        delete inspectorStatusByTab[tabId];
+    }
 });

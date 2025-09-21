@@ -1,34 +1,29 @@
-// vite.config.ts
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
   build: {
+    // This ensures the public directory is copied to the root of the dist folder
+    // without any changes to the filenames, which is what we need for the manifest.
+    outDir: 'dist',
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        // FIX: Path ko theek kar diya gaya hai
         inspector: path.resolve(__dirname, 'inspector.html'),
       },
       output: {
         entryFileNames: `assets/[name].js`,
         chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name].[ext]`
-      }
-    }
-  }
-}));
+        assetFileNames: `assets/[name].[ext]`,
+      },
+    },
+  },
+});

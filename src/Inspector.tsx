@@ -1,105 +1,46 @@
 // src/Inspector.tsx
-import React, { useEffect, useState } from 'react';
-import { Button } from './components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
-import { Badge } from './components/ui/badge';
+import React, { useState } from 'react';
+import InspectorSidebar from './components/inspector/InspectorSidebar';
+import SelectorView from './components/inspector/SelectorView';
+import FontFinderView from './components/inspector/SelectorView'; // Import the new Font Finder view
 import { Zap } from 'lucide-react';
 import './index.css';
 
-interface ElementData {
-  tag: string;
-  id: string;
-  classes: string;
-  styles: Record<string, string>;
-}
+// Yahan aap apne sabhi tools ke naam define kar sakte hain
+type Tool = 'selector' | 'seeker' | 'dashboard' | 'font-finder' | 'generative-ai';
 
 function Inspector() {
-  const [inspectorActive, setInspectorActive] = useState(false);
-  const [elementData, setElementData] = useState<ElementData | null>(null);
+  const [activeTool, setActiveTool] = useState<Tool>('selector');
 
-  useEffect(() => {
-    const messageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
-      if (message.type === 'update' && message.data) {
-        setElementData(message.data);
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(messageListener);
-
-    chrome.runtime.sendMessage({ type: 'getElementData' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error(chrome.runtime.lastError.message);
-        return;
-      }
-      if (response) {
-        setElementData(response);
-      }
-    });
-
-    return () => {
-      chrome.runtime.onMessage.removeListener(messageListener);
-    };
-  }, []);
-
-  const handleToggleInspector = () => {
-    chrome.runtime.sendMessage({ type: 'toggleInspector' }, (response) => {
-        if (chrome.runtime.lastError) {
-            console.error(chrome.runtime.lastError.message);
-            // Handle error, maybe show a message to the user
-            return;
-        }
-      if (response && response.success) {
-        setInspectorActive(!inspectorActive);
-        if(inspectorActive) {
-            setElementData(null);
-        }
-      } else {
-        console.error("Failed to toggle inspector:", response?.error);
-      }
-    });
+  const renderActiveTool = () => {
+    switch (activeTool) {
+      case 'selector':
+        return <SelectorView />;
+      // Abhi ke liye dusre tools placeholder hain
+      case 'dashboard':
+        return <div className="p-4 text-center text-muted-foreground">Dashboard View (Coming Soon)</div>;
+      case 'font-finder':
+        return <div className="p-4 text-center text-muted-foreground">Font Finder (Coming Soon)</div>;
+      default:
+        return <SelectorView />;
+    }
   };
 
   return (
-    <div className="w-[350px] bg-background text-foreground p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <h1 className="text-lg font-bold">AI CSS Inspector</h1>
+    <div className="w-[380px] h-[550px] bg-background text-foreground flex flex-col">
+      <header className="flex items-center gap-2 p-3 border-b border-border flex-shrink-0">
+        <div className="w-7 h-7 bg-gradient-to-r from-primary to-accent rounded-md flex items-center justify-center">
+          <Zap className="w-4 h-4 text-white" />
         </div>
-        <Button onClick={handleToggleInspector} variant={inspectorActive ? 'destructive' : 'default'}>
-          {inspectorActive ? 'Deactivate' : 'Activate'}
-        </Button>
+        <h1 className="text-md font-bold">AI CSS Inspector</h1>
+      </header>
+      
+      <div className="flex flex-grow overflow-hidden">
+        <InspectorSidebar activeTool={activeTool} setActiveTool={setActiveTool} />
+        <main className="flex-grow overflow-y-auto">
+          {renderActiveTool()}
+        </main>
       </div>
-
-      {elementData ? (
-        <Card className="tech-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Badge variant="secondary">{elementData.tag}</Badge>
-              <span>{elementData.id !== 'N/A' ? `#${elementData.id}` : ''}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground mb-2 break-words">
-                Classes: {elementData.classes}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              {Object.entries(elementData.styles).map(([key, value]) => (
-                <div key={key}>
-                  <p className="text-muted-foreground capitalize text-xs">{key.replace(/([A-Z])/g, ' $1')}</p>
-                  <p className="font-mono text-xs">{value}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="text-center text-muted-foreground p-8">
-          {inspectorActive ? 'Click on an element on the page to inspect it.' : 'Click "Activate" to start inspecting.'}
-        </div>
-      )}
     </div>
   );
 }
