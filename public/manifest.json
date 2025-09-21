@@ -30,7 +30,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": [ "inspector.css" ],
+      "resources": [ "assets/*" ],
       "matches": [ "<all_urls>" ]
     }
   ],

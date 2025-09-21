@@ -7,7 +7,7 @@ import {
   Settings, 
   Palette, 
   Type, 
-  Image as ImageIcon, 
+  ImageIcon, 
   Shield, 
   Zap,
   BarChart3,

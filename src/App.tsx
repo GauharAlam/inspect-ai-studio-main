@@ -11,6 +11,7 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
+import InspectorToolbar from "./components/InspectorToolbar";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ const AppLayout = () => (
   <>
     <Header />
     <Outlet />
+    <InspectorToolbar />
   </>
 );
 
@@ -31,31 +33,31 @@ const App = () => (
           <Routes>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Index />} />
-              <Route 
-                path="/dashboard" 
+              <Route
+                path="/dashboard"
                 element={
                   <AuthGuard requireAuth={true}>
                     <Dashboard />
                   </AuthGuard>
-                } 
+                }
               />
             </Route>
             
-            <Route 
-              path="/login" 
+            <Route
+              path="/login"
               element={
                 <AuthGuard requireAuth={false}>
                   <Login />
                 </AuthGuard>
-              } 
+              }
             />
-            <Route 
-              path="/signup" 
+            <Route
+              path="/signup"
               element={
                 <AuthGuard requireAuth={false}>
                   <Signup />
                 </AuthGuard>
-              } 
+              }
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
