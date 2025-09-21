@@ -1,10 +1,14 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cookieParser = require('cookie-parser');
-const cors = require('cors');
-require('dotenv').config();
+// backend/server.js
 
-const authRoutes = require('./routes/auth');
+import express from 'express';
+import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import dotenv from 'dotenv';
+// FIX: File extension .js add kiya gaya hai
+import authRoutes from './routes/auth.js'; 
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

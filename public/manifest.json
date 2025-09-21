@@ -14,9 +14,9 @@
   "action": {
     "default_popup": "inspector.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "favicon.ico",
+      "48": "favicon.ico",
+      "128": "favicon.ico"
     }
   },
   "background": {
@@ -35,8 +35,8 @@
     }
   ],
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "favicon.ico",
+    "48": "favicon.ico",
+    "128": "favicon.ico"
   }
 }

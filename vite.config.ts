@@ -1,3 +1,5 @@
+// vite.config.ts
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -19,7 +21,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        inspector: path.resolve(__dirname, 'public/inspector.html'),
+        // FIX: Path ko theek kar diya gaya hai
+        inspector: path.resolve(__dirname, 'inspector.html'),
       },
       output: {
         entryFileNames: `assets/[name].js`,
