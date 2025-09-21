@@ -1,85 +1,108 @@
 // public/content-script.js
 
-let inspectorEnabled = false;
-let highlightElement = null;
+let inspectorIsActive = false;
+let highlightEl = document.createElement('div');
+let overlayEl = document.createElement('div');
+let currentTarget = null;
 
-function getElementInfo(element) {
-    if (!element) return null;
-    const styles = window.getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return {
-        tag: element.tagName.toLowerCase(),
-        id: element.id || 'N/A',
-        classes: Array.from(element.classList).join(', ') || 'N/A',
-        styles: {
-            width: `${Math.round(rect.width)}px`,
-            height: `${Math.round(rect.height)}px`,
-            margin: styles.margin,
-            padding: styles.padding,
-            fontFamily: styles.fontFamily,
-            fontSize: styles.fontSize,
-            color: styles.color,
-            backgroundColor: styles.backgroundColor,
-        }
-    };
+function initialize() {
+  // Create the highlight element
+  highlightEl.style.position = 'absolute';
+  highlightEl.style.backgroundColor = 'rgba(0, 123, 255, 0.2)';
+  highlightEl.style.border = '2px solid #007bff';
+  highlightEl.style.pointerEvents = 'none';
+  highlightEl.style.zIndex = '99999998';
+  highlightEl.style.transition = 'all 50ms ease';
+  document.body.appendChild(highlightEl);
+
+  // Create the overlay element for CSS properties
+  overlayEl.style.position = 'absolute';
+  overlayEl.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
+  overlayEl.style.color = '#ffffff';
+  overlayEl.style.border = '1px solid #555';
+  overlayEl.style.borderRadius = '8px';
+  overlayEl.style.padding = '8px';
+  overlayEl.style.fontFamily = 'monospace';
+  overlayEl.style.fontSize = '12px';
+  overlayEl.style.pointerEvents = 'none';
+  overlayEl.style.zIndex = '99999999';
+  overlayEl.style.transition = 'all 50ms ease';
+  overlayEl.style.backdropFilter = 'blur(5px)';
+  document.body.appendChild(overlayEl);
+  
+  // Hide them initially
+  highlightEl.style.display = 'none';
+  overlayEl.style.display = 'none';
 }
 
-function updateHighlight(element) {
-    if (highlightElement) {
-        highlightElement.style.outline = '';
-    }
-    highlightElement = element;
-    if (highlightElement) {
-        highlightElement.style.outline = '2px dashed #0ea5e9';
-    }
+function handleMouseMove(e) {
+  if (!inspectorIsActive) return;
+  
+  const element = document.elementFromPoint(e.clientX, e.clientY);
+
+  if (!element || element === highlightEl || element === overlayEl || element === currentTarget) {
+    return;
+  }
+  
+  currentTarget = element;
+
+  const rect = element.getBoundingClientRect();
+  const styles = window.getComputedStyle(element);
+
+  highlightEl.style.width = `${rect.width}px`;
+  highlightEl.style.height = `${rect.height}px`;
+  highlightEl.style.top = `${rect.top + window.scrollY}px`;
+  highlightEl.style.left = `${rect.left + window.scrollX}px`;
+
+  const cssText = `
+    <div style="color: #88aaff;">${element.tagName.toLowerCase()}</div>
+    ${element.id ? `<div style="color: #ffcc99;">#${element.id}</div>` : ''}
+    ${element.className ? `<div style="color: #99ddff;">.${element.className.split(' ').join('.')}</div>` : ''}
+    <hr style="border-color: #555; margin: 4px 0;" />
+    <div><strong>W:</strong> ${Math.round(rect.width)}px <strong>H:</strong> ${Math.round(rect.height)}px</div>
+    <div><strong>Color:</strong> ${styles.color}</div>
+    <div><strong>Font:</strong> ${styles.fontSize} ${styles.fontFamily.split(',')[0]}</div>
+    <div><strong>Padding:</strong> ${styles.padding}</div>
+    <div><strong>Margin:</strong> ${styles.margin}</div>
+  `;
+  overlayEl.innerHTML = cssText;
+
+  let overlayTop = rect.top + window.scrollY - 10;
+  let overlayLeft = rect.left + window.scrollX;
+  
+  if (overlayTop < window.scrollY) {
+      overlayTop = rect.bottom + window.scrollY + 10;
+  }
+  
+  overlayEl.style.top = `${overlayTop}px`;
+  overlayEl.style.left = `${overlayLeft}px`;
+  overlayEl.style.transform = 'translateY(-100%)';
 }
 
-function handleMouseOver(event) {
-    if (!inspectorEnabled) return;
-    updateHighlight(event.target);
+function activateInspector() {
+  inspectorIsActive = true;
+  highlightEl.style.display = 'block';
+  overlayEl.style.display = 'block';
+  document.addEventListener('mousemove', handleMouseMove);
 }
 
-function handleClick(event) {
-    if (!inspectorEnabled) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    
-    const info = getElementInfo(event.target);
-    if (info) {
-        chrome.runtime.sendMessage({ type: 'elementInfo', data: info });
-    }
-    
-    // Deactivate after selection
-    inspectorEnabled = false;
-    updateHighlight(null); // Clear highlight
-    chrome.runtime.sendMessage({ type: 'inspectorToggledOff' });
-
-    // Remove the click listener so it only fires once per activation
-    document.removeEventListener('click', handleClick, true);
+function deactivateInspector() {
+  inspectorIsActive = false;
+  highlightEl.style.display = 'none';
+  overlayEl.style.display = 'none';
+  document.removeEventListener('mousemove', handleMouseMove);
+  currentTarget = null;
 }
-
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.toggleInspector) {
-        inspectorEnabled = !inspectorEnabled;
-        
-        if (inspectorEnabled) {
-            // Add the click listener ONLY when activated
-            document.addEventListener('click', handleClick, true);
-        } else {
-            // Clean up when deactivated
-            if (highlightElement) {
-                highlightElement.style.outline = '';
-            }
-            highlightElement = null;
-            document.removeEventListener('click', handleClick, true);
-        }
-        
-        sendResponse({ inspectorEnabled: inspectorEnabled });
+  // Check if the message type is 'TOGGLE_INSPECTOR' before accessing its properties
+  if (request.type === 'TOGGLE_INSPECTOR') {
+    if (request.isActive) {
+      activateInspector();
+    } else {
+      deactivateInspector();
     }
-    return true; // Keep the message channel open for async response
+  }
 });
 
-// The mouseover listener can be active all the time
-document.addEventListener('mouseover', handleMouseOver, true);
+initialize();

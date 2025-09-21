@@ -1,60 +1,41 @@
 // public/background.js
 
-let inspectedElementData = null;
-let inspectorStatusByTab = {};
+// This object will store the active state for each tab
+const tabStates = {};
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const tabId = sender.tab?.id;
+// When the user clicks the extension icon
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab.id) return;
 
-  // This is an async listener, so return true.
-  (async () => {
-    if (request.type === 'elementInfo') {
-      inspectedElementData = request.data;
-      await chrome.runtime.sendMessage({ type: 'update', data: inspectedElementData });
-    } 
-    
-    else if (request.type === 'toggleInspector') {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab && tab.id) {
-        try {
-          const response = await chrome.tabs.sendMessage(tab.id, { toggleInspector: true });
-          inspectorStatusByTab[tab.id] = response.inspectorEnabled;
-          if (!response.inspectorEnabled) {
-            inspectedElementData = null;
-          }
-          await chrome.runtime.sendMessage({ type: 'inspectorToggled', data: { isEnabled: response.inspectorEnabled } });
-        } catch (e) {
-          console.warn("Could not toggle inspector. Is the content script injected?", e.message);
-        }
-      }
-    } 
-    
-    else if (request.type === 'getInspectorStatus') {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab && tab.id) {
-            sendResponse({ 
-                isEnabled: inspectorStatusByTab[tab.id] || false,
-                lastData: inspectedElementData 
-            });
-        }
-    }
-    
-    else if (request.type === 'inspectorToggledOff') {
-        if(tabId) inspectorStatusByTab[tabId] = false;
-        await chrome.runtime.sendMessage({ type: 'inspectorToggled', data: { isEnabled: false } });
-    }
+  // Toggle the state for the current tab
+  const currentState = tabStates[tab.id] || false;
+  const newState = !currentState;
+  tabStates[tab.id] = newState;
 
-  })();
-  
-  return true;
+  // Change the icon based on the state
+  const iconPath = newState ? "/icons/icon-active.png" : "/icons/icon-default.png";
+  chrome.action.setIcon({ path: iconPath, tabId: tab.id });
+
+  // Send a message to the content script to turn the inspector on or off
+  try {
+    await chrome.tabs.sendMessage(tab.id, {
+      type: 'TOGGLE_INSPECTOR',
+      isActive: newState,
+    });
+  } catch (e) {
+    console.error("Could not send message to the content script. It might not be injected on this page.", e);
+  }
 });
 
-// Clear status when a tab is closed or reloaded
+// Clean up when a tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
-  delete inspectorStatusByTab[tabId];
+  delete tabStates[tabId];
 });
+
+// Reset state when a page is reloaded
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.status === 'loading') {
-        delete inspectorStatusByTab[tabId];
+        delete tabStates[tabId];
+        chrome.action.setIcon({ path: "/icons/icon-default.png", tabId: tabId });
     }
 });
