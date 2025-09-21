@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AI CSS Inspector Design System - Dark Mode First with Futuristic Elements */
+
+@layer base {
+  :root {
+    /* Dark Mode Primary Colors */
+    --background: 222 47% 4%;
+    --foreground: 210 40% 98%;
+
+    /* Card & Surface Colors */
+    --card: 223 47% 6%;
+    --card-foreground: 210 40% 98%;
+    --card-elevated: 223 47% 8%;
+
+    /* Popover Colors */
+    --popover: 223 47% 6%;
+    --popover-foreground: 210 40% 98%;
+
+    /* AI-Inspired Brand Colors */
+    --primary: 217 91% 60%;  /* Vibrant Blue */
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 217 91% 70%;
+
+    /* Secondary AI Colors */
+    --secondary: 280 100% 70%;  /* Electric Purple */
+    --secondary-foreground: 210 40% 98%;
+    --secondary-glow: 280 100% 80%;
+
+    /* Muted/Subtle Colors */
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    /* Accent Colors */
+    --accent: 180 100% 50%;  /* Cyan Accent */
+    --accent-foreground: 222 47% 4%;
+    --accent-glow: 180 100% 70%;
+
+    /* Success & Error */
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Borders & Inputs */
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 217 91% 60%;
+
+    /* AI Gradients */
+    --gradient-ai-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(280 100% 70%));
+    --gradient-ai-secondary: linear-gradient(45deg, hsl(180 100% 50%), hsl(217 91% 60%));
+    --gradient-ai-background: linear-gradient(180deg, hsl(222 47% 4%), hsl(223 47% 6%));
+    --gradient-mesh: radial-gradient(circle at 50% 50%, hsl(217 91% 60% / 0.1), transparent 50%);
+
+    /* Tech Grid Pattern */
+    --grid-pattern: url("data:image/svg+xml,%3csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3e%3cdefs%3e%3cpattern id='grid' width='60' height='60' patternUnits='userSpaceOnUse'%3e%3cpath d='m 60 0 l 0 60 m -30 -60 l 0 60 m -30 -60 l 0 60 m 60 -60 l -60 0 m 60 -30 l -60 0 m 60 -30 l -60 0' stroke='%23334155' stroke-width='1' opacity='0.1'/%3e%3c/pattern%3e%3c/defs%3e%3crect width='100%25' height='100%25' fill='url(%23grid)' /%3e%3c/svg%3e");
+
+    /* Shadows & Glows */
+    --shadow-ai: 0 20px 40px -12px hsl(217 91% 60% / 0.25);
+    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.4);
+    --shadow-tech: 0 8px 32px hsl(222 47% 4% / 0.8);
+
+    /* Animation Easings */
+    --ease-ai: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+/* AI-Inspired Animation Keyframes */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    background: var(--gradient-ai-background);
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--grid-pattern);
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* AI Glow Effects */
+  .ai-glow {
+    position: relative;
+  }
+
+  .ai-glow::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: var(--gradient-ai-primary);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-ai);
+  }
+
+  .ai-glow:hover::before {
+    opacity: 0.8;
+  }
+
+  /* Tech Border Animation */
+  .tech-border {
+    position: relative;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .tech-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--gradient-ai-primary);
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-ai);
+    z-index: -1;
+  }
+
+  .tech-border:hover::before {
+    opacity: 0.1;
+  }
+
+  /* Floating Animation */
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  /* Pulse Glow Animation */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+    }
+    50% { 
+      box-shadow: 0 0 40px hsl(var(--primary) / 0.8);
+    }
+  }
+
+  /* Circuit Lines Animation */
+  .circuit-line {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .circuit-line::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 2px;
+    height: 100%;
+    background: var(--gradient-ai-secondary);
+    animation: circuit-flow 3s linear infinite;
+  }
+
+  @keyframes circuit-flow {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+}
