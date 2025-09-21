@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        inspector: path.resolve(__dirname, 'inspector.html'), // Add this line
+        inspector: path.resolve(__dirname, 'inspector.html'),
       },
       output: {
         entryFileNames: `assets/[name].js`,
