@@ -1,81 +1,47 @@
 import React, { useState } from 'react';
-import {
-  Lock,
-  Hand,
-  MousePointer,
-  Square,
-  Minus,
-  Pencil,
-  Type,
-  ImageIcon,
-  Trash2,
-  Grid,
-  Settings,
-} from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from "./ui/button";
+import { ArrowLeft, Code, Palette, MousePointer, Trash2, Bot, TextCursor, Minimize, Maximize } from 'lucide-react';
 
-const InspectorToolbar = () => {
-  const [activeTool, setActiveTool] = useState('select');
-  const [isLocked, setIsLocked] = useState(false);
+export function InspectorToolbar({ onSelectView, onBack, showBackButton }) {
+  const [isMinimized, setIsMinimized] = useState(false);
 
-  const handleToolClick = (tool: string) => {
-    setActiveTool(tool);
-    // Send message to content script to change mode
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].id) {
-        chrome.tabs.sendMessage(tabs[0].id, { tool });
-      }
-    });
-  };
-
-  const toggleLock = () => {
-    setIsLocked(!isLocked);
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].id) {
-            chrome.tabs.sendMessage(tabs[0].id, { lock: !isLocked });
-        }
-    });
+  const toggleMinimize = () => {
+    const newMinimizedState = !isMinimized;
+    setIsMinimized(newMinimizedState);
+    const event = new CustomEvent('toggle-minimize', { detail: newMinimizedState });
+    window.dispatchEvent(event);
   };
 
   return (
-    <div
-      className="fixed top-1/2 left-4 -translate-y-1/2 z-[9999] bg-background/80 backdrop-blur-sm p-2 rounded-lg shadow-lg border border-border flex flex-col gap-2"
-    >
-        <Button variant={isLocked ? "secondary" : "ghost"} size="icon" onClick={toggleLock}>
-            <Lock size={16} />
+    <div className="flex justify-between items-center p-2 bg-gray-800 text-white flex-shrink-0">
+      <div className="flex items-center gap-2">
+        {showBackButton && (
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" onClick={() => onSelectView('selector')}>
+          <MousePointer className="h-4 w-4" />
         </Button>
-      <Button variant={activeTool === 'pan' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('pan')}>
-        <Hand size={16} />
-      </Button>
-      <Button variant={activeTool === 'select' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('select')}>
-        <MousePointer size={16} />
-      </Button>
-      <Button variant={activeTool === 'draw-rect' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('draw-rect')}>
-        <Square size={16} />
-      </Button>
-      <Button variant={activeTool === 'draw-line' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('draw-line')}>
-        <Minus size={16} />
-      </Button>
-      <Button variant={activeTool === 'edit-text' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('edit-text')}>
-        <Pencil size={16} />
-      </Button>
-      <Button variant={activeTool === 'font-inspector' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('font-inspector')}>
-        <Type size={16} />
-      </Button>
-      <Button variant={activeTool === 'image-inspector' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('image-inspector')}>
-        <ImageIcon size={16} />
-      </Button>
-      <Button variant={activeTool === 'delete' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('delete')}>
-        <Trash2 size={16} />
-      </Button>
-      <Button variant={activeTool === 'grid' ? "secondary" : "ghost"} size="icon" onClick={() => handleToolClick('grid')}>
-        <Grid size={16} />
-      </Button>
-      <Button variant="ghost" size="icon" onClick={() => window.open(chrome.runtime.getURL('index.html'))}>
-        <Settings size={16} />
+        <Button variant="ghost" size="icon" onClick={() => onSelectView('color-picker')}>
+          <Palette className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onSelectView('live-text-editor')}>
+          <TextCursor className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onSelectView('delete-element')}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onSelectView('generative-ai')}>
+          <Bot className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onSelectView('code-editor')}>
+          <Code className="h-4 w-4" />
+        </Button>
+      </div>
+      <Button variant="ghost" size="icon" onClick={toggleMinimize}>
+        {isMinimized ? <Maximize className="h-4 w-4" /> : <Minimize className="h-4 w-4" />}
       </Button>
     </div>
   );
-};
-
-export default InspectorToolbar;
+}
