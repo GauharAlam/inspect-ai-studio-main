@@ -1,14 +1,15 @@
 // src/Inspector.tsx
 import React, { useState, useEffect } from 'react';
-import InspectorSidebar from './components/inspector/InspectorSidebar';
+import { Home, Zap, X } from 'lucide-react';
+import { Button } from './components/ui/button';
+import MainView from './components/inspector/MainView';
 import SelectorView from './components/inspector/SelectorView';
 import GenerativeAIView from './components/inspector/GenerativeAIView';
-import { Zap } from 'lucide-react';
+import FontFinderView from './components/inspector/FontFinderView';
+import ColorPickerView from './components/inspector/ColorPickerView';
+import LiveTextEditorView from './components/inspector/LiveTextEditorView';
+import DeleteElementView from './components/inspector/DeleteElementView';
 import './index.css';
-
-const FontFinderView = () => (
-  <div className="p-4 text-center text-muted-foreground">Font Finder (Coming Soon)</div>
-);
 
 export interface ElementData {
   tag: string;
@@ -18,46 +19,40 @@ export interface ElementData {
   html: string;
 }
 
-type Tool = 'selector' | 'seeker' | 'dashboard' | 'font-finder' | 'generative-ai';
+// **FIX**: Added 'dashboard' and 'seeker' back to the list of allowed tools.
+type Tool = 'main' | 'selector' | 'live-text-editor' | 'font-finder' | 'color-picker' | 'delete-element' | 'screenshot' | 'generative-ai' | 'dashboard' | 'seeker';
 
 function Inspector() {
-  const [activeTool, setActiveTool] = useState<Tool>('selector');
+  const [activeTool, setActiveTool] = useState<Tool>('main');
   const [elementData, setElementData] = useState<ElementData | null>(null);
   const [inspectorActive, setInspectorActive] = useState(false);
 
+  // The rest of this file remains the same as the previous version...
+  // ... (useEffect, handlers, and renderActiveTool function)
+  
   useEffect(() => {
-    // Live updates ke liye listener (agar popup khula ho to)
     const messageListener = (message: any) => {
       if (message.type === 'UPDATE_ELEMENT_DATA') {
         setElementData(message.data);
-        setInspectorActive(false);
-        setActiveTool('selector');
+        setInspectorActive(false); 
+      }
+      if (message.type === 'INSPECTOR_DEACTIVATED') {
+          setInspectorActive(false);
+          setActiveTool('main');
       }
     };
     chrome.runtime.onMessage.addListener(messageListener);
 
-    // Popup khulte hi, background script se last selected data maangein
     chrome.runtime.sendMessage({ type: 'GET_LAST_ELEMENT_DATA' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error(chrome.runtime.lastError.message);
-        return;
-      }
-      if (response && response.data) {
-        setElementData(response.data);
-      }
+      if (chrome.runtime.lastError) { return; }
+      if (response && response.data) { setElementData(response.data); }
     });
-
-    // Inspector ka initial status lein
+    
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0] && tabs[0].id) {
             chrome.runtime.sendMessage({ type: 'GET_INSPECTOR_STATUS', tabId: tabs[0].id }, (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error(chrome.runtime.lastError.message);
-                    return;
-                }
-                if (response) {
-                    setInspectorActive(response.isActive);
-                }
+                if (chrome.runtime.lastError) { return; }
+                if (response) { setInspectorActive(response.isActive); }
             });
         }
     });
@@ -65,20 +60,45 @@ function Inspector() {
     return () => chrome.runtime.onMessage.removeListener(messageListener);
   }, []);
 
-  const handleToggleInspector = () => {
+  const handleToggleInspector = (forceState?: boolean) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0] && tabs[0].id) {
-        chrome.runtime.sendMessage({ type: 'TOGGLE_INSPECTOR', tabId: tabs[0].id }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("Error toggling inspector:", chrome.runtime.lastError.message);
-            return;
-          }
-          if (response) {
-            setInspectorActive(response.isActive);
-          }
-        });
+        const newState = forceState ?? !inspectorActive;
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'SET_INSPECTOR_ACTIVE', isActive: newState, mode: activeTool });
+        setInspectorActive(newState);
       }
     });
+  };
+  
+  useEffect(() => {
+    const toolsRequiringInspector = ['selector', 'live-text-editor', 'delete-element'];
+    const shouldBeActive = toolsRequiringInspector.includes(activeTool);
+    
+    if (shouldBeActive && !inspectorActive) {
+      handleToggleInspector(true);
+    } else if (!shouldBeActive && inspectorActive) {
+      handleToggleInspector(false);
+    }
+  }, [activeTool]);
+
+  const handleToolSelect = (tool: string) => {
+    if (tool === 'screenshot') {
+      chrome.tabs.captureVisibleTab(null, {}, (dataUrl) => {
+        const link = document.createElement('a');
+        link.download = 'screenshot.png';
+        link.href = dataUrl;
+        link.click();
+      });
+      return;
+    }
+    setActiveTool(tool as Tool);
+  };
+  
+  const handleClose = () => {
+    if (inspectorActive) {
+        handleToggleInspector(false);
+    }
+    window.close();
   };
 
   const renderActiveTool = () => {
@@ -88,43 +108,56 @@ function Inspector() {
           <SelectorView
             elementData={elementData}
             inspectorActive={inspectorActive}
-            onToggleInspector={handleToggleInspector}
+            onToggleInspector={() => handleToggleInspector()}
+            setElementData={setElementData}
           />
         );
-      case 'generative-ai':
-        return <GenerativeAIView elementData={elementData} />;
+      case 'live-text-editor':
+        return <LiveTextEditorView />;
       case 'font-finder':
         return <FontFinderView />;
+      case 'color-picker':
+        return <ColorPickerView />;
+      case 'delete-element':
+        return <DeleteElementView />;
+      case 'generative-ai':
+        return <GenerativeAIView elementData={elementData} />;
       case 'dashboard':
-        return <div className="p-4 text-center text-muted-foreground">Dashboard (Coming Soon)</div>;
+          chrome.tabs.create({ url: 'index.html' });
+          return <div className="p-4 text-center text-muted-foreground">Opening dashboard...</div>;
       case 'seeker':
         return <div className="p-4 text-center text-muted-foreground">Seeker (Coming Soon)</div>;
       default:
-        return (
-          <SelectorView
-            elementData={elementData}
-            inspectorActive={inspectorActive}
-            onToggleInspector={handleToggleInspector}
-          />
-        );
+        return <MainView onToolSelect={handleToolSelect} />;
     }
   };
 
   return (
-    <div className="w-[380px] h-[550px] bg-background text-foreground flex flex-col">
-      <header className="flex items-center gap-2 p-3 border-b border-border flex-shrink-0">
-        <div className="w-7 h-7 bg-gradient-to-r from-primary to-accent rounded-md flex items-center justify-center">
-          <Zap className="w-4 h-4 text-white" />
+    <div className="w-[380px] h-[550px] bg-gray-900 text-gray-100 flex flex-col">
+      <header className="flex items-center justify-between gap-2 p-3 border-b border-gray-700 flex-shrink-0">
+        <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-gradient-to-r from-brand to-green-400 rounded-md flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-md font-bold">AI CSS Inspector</h1>
         </div>
-        <h1 className="text-md font-bold">AI CSS Inspector</h1>
+        <div>
+            {activeTool !== 'main' && (
+                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setActiveTool('main')}>
+                    <Home className="w-4 h-4" />
+                </Button>
+            )}
+            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={handleClose}>
+                <X className="w-4 h-4" />
+            </Button>
+        </div>
       </header>
-
-      <div className="flex flex-grow overflow-hidden">
-        <InspectorSidebar activeTool={activeTool} setActiveTool={setActiveTool} />
-        <main className="flex-grow overflow-y-auto">{renderActiveTool()}</main>
-      </div>
+      <main className="flex-grow overflow-y-auto">
+        {renderActiveTool()}
+      </main>
     </div>
   );
 }
+
 
 export default Inspector;

@@ -200,3 +200,19 @@
     100% { left: 100%; }
   }
 }
+@layer utilities {
+  .btn-feature {
+    @apply bg-gray-800/50 border border-gray-700 h-20 text-white rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-200 ease-in-out;
+  }
+
+  .btn-feature:hover:not(:disabled) {
+    background-color: hsl(var(--brand));
+    border-color: hsl(var(--brand-glow));
+    box-shadow: 0 0 20px hsl(var(--brand) / 0.5);
+  }
+
+  /* Keep the disabled styles from the previous version */
+  .btn-feature:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+}

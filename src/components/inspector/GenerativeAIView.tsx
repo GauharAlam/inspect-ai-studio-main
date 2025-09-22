@@ -19,6 +19,25 @@ interface Suggestion {
   category: SuggestionCategory;
 }
 
+// Helper function to convert CSSStyleDeclaration to a simple object
+const getSerializableStyles = (styles: CSSStyleDeclaration): Record<string, string> => {
+  const styleObject: Record<string, string> = {};
+  const relevantProperties = [
+    'color', 'background-color', 'font-family', 'font-size', 'font-weight',
+    'line-height', 'text-align', 'width', 'height', 'padding', 'margin', 'border',
+    'border-radius', 'display', 'flex-direction', 'justify-content', 'align-items', 'gap'
+  ];
+  
+  relevantProperties.forEach(prop => {
+      const value = styles.getPropertyValue(prop);
+      if(value) {
+          styleObject[prop] = value;
+      }
+  });
+  return styleObject;
+};
+
+
 const GenerativeAIView: React.FC<GenerativeAIViewProps> = ({ elementData }) => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,17 +75,19 @@ const GenerativeAIView: React.FC<GenerativeAIViewProps> = ({ elementData }) => {
     setSuggestions([]);
 
     try {
+      // **FIX**: Convert the large style object into a simple one before sending
+      const serializableStyles = getSerializableStyles(elementData.styles as any);
+
       const response = await fetch('http://localhost:3001/api/suggestions/generate', {
         method: 'POST',
-        // 👇 YEH SABSE IMPORTANT CHANGE HAI
-        credentials: 'include', // Isse login cookie request ke saath jayegi
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           elementHtml: elementData.html,
-          elementCss: elementData.styles,
-          websiteUrl: window.location.href, // Note: This will be the extension's URL, not the page's. Needs to be passed from content script if needed.
+          elementCss: serializableStyles, // Send the cleaned object
+          websiteUrl: window.location.href,
         }),
       });
 

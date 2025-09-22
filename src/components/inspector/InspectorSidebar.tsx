@@ -1,9 +1,9 @@
 // src/components/inspector/InspectorSidebar.tsx
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Search, SlidersHorizontal, LayoutDashboard, Type, Sparkles } from 'lucide-react';
+import { Search, SlidersHorizontal, LayoutDashboard, Type, Sparkles, Palette } from 'lucide-react';
 
-type Tool = 'selector' | 'seeker' | 'dashboard' | 'font-finder' | 'generative-ai';
+type Tool = 'selector' | 'seeker' | 'dashboard' | 'font-finder' | 'generative-ai' | 'color-picker';
 
 interface InspectorSidebarProps {
   activeTool: Tool;
@@ -15,6 +15,7 @@ const tools = [
   { id: 'seeker', icon: SlidersHorizontal, label: 'Seeker' },
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'font-finder', icon: Type, label: 'Font Finder' },
+  { id: 'color-picker', icon: Palette, label: 'Color Picker' }, // New Tool
   { id: 'generative-ai', icon: Sparkles, label: 'Generative AI' },
 ] as const;
 

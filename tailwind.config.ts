@@ -126,6 +126,11 @@ export default {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      brand: { // New color for the green buttons
+      DEFAULT: "hsl(142 76% 36%)",
+      foreground: "hsl(210 40% 98%)",
+      glow: "hsl(142 76% 46%)",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

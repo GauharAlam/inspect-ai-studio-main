@@ -6,7 +6,6 @@ import fetch from 'node-fetch';
 
 const router = express.Router();
 
-// ... (GET route remains the same)
 router.get('/', auth, async (req, res) => {
   try {
     const suggestions = await Suggestion.find({ user: req.user.id }).sort({ createdAt: -1 });
@@ -17,29 +16,38 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-
-// @route   POST api/suggestions/generate
-// @desc    Generate AI suggestions
-// @access  Private
 router.post('/generate', auth, async (req, res) => {
   const { elementHtml, elementCss, websiteUrl } = req.body;
-
-  // FIX: Use the Gemini API key from environment variables
+  
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (!geminiApiKey) {
     return res.status(500).json({ error: 'Gemini API key not configured on the server.' });
   }
 
-  const systemPrompt = `You are an expert web design and accessibility consultant...`; // Your full prompt here
+  const systemPrompt = `You are an expert web design and accessibility consultant. Given the HTML and CSS of a web element, provide actionable suggestions for improvement. Analyze the code for potential issues in these four categories: Accessibility, Performance, UI/UX, and Modern Practices.
+
+  Your response must be a JSON array of objects. Each object must have three properties:
+  1.  "title": A short, descriptive title for the suggestion (e.g., "Add ARIA Label").
+  2.  "reason": A concise, one-sentence explanation of why this change is important.
+  3.  "category": One of the four valid categories: "Accessibility", "Performance", "UI/UX", or "Modern Practices".
+
+  Do not include any other text, markdown, or explanations outside of the JSON array.
+
+  Here is the element to analyze:
+  HTML:
+  ${elementHtml}
+
+  CSS:
+  ${JSON.stringify(elementCss, null, 2)}
+  `;
 
   try {
-    // FIX: Use the variable for the API key in the URL
     const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: systemPrompt }] }],
-        generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 1024 }
+        generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 1024, responseMimeType: "application/json" }
       })
     });
 
@@ -55,10 +63,8 @@ router.post('/generate', auth, async (req, res) => {
       throw new Error('No valid response from AI');
     }
 
-    const cleanedResponse = aiResponseText.replace(/```json\n?|\n?```/g, '').trim();
-    const suggestions = JSON.parse(cleanedResponse);
+    const suggestions = JSON.parse(aiResponseText);
 
-    // Save to MongoDB
     const newSuggestion = new Suggestion({
       user: req.user.id,
       element_html: elementHtml,
