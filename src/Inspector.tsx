@@ -1,15 +1,13 @@
 // src/Inspector.tsx
 import React, { useState, useEffect } from 'react';
-import { Home, Zap, X } from 'lucide-react';
-import { Button } from './components/ui/button';
-import MainView from './components/inspector/MainView';
-import SelectorView from './components/inspector/SelectorView';
+import { Button } from '@/components/ui/button';
+import { Power, Trash2, Copy, Zap } from 'lucide-react';
+import InspectorSidebar from './components/inspector/InspectorSidebar';
 import GenerativeAIView from './components/inspector/GenerativeAIView';
-import FontFinderView from './components/inspector/FontFinderView';
-import ColorPickerView from './components/inspector/ColorPickerView';
-import LiveTextEditorView from './components/inspector/LiveTextEditorView';
-import DeleteElementView from './components/inspector/DeleteElementView';
 import './index.css';
+
+// Yeh type definition ab yahan se export ho rahi hai
+export type Tool = 'selector' | 'seeker' | 'dashboard' | 'font-finder' | 'generative-ai';
 
 export interface ElementData {
   tag: string;
@@ -19,145 +17,126 @@ export interface ElementData {
   html: string;
 }
 
-// **FIX**: Added 'dashboard' and 'seeker' back to the list of allowed tools.
-type Tool = 'main' | 'selector' | 'live-text-editor' | 'font-finder' | 'color-picker' | 'delete-element' | 'screenshot' | 'generative-ai' | 'dashboard' | 'seeker';
+const FontFinderView = () => (
+    <div className="p-4 text-center text-muted-foreground">Font Finder (Coming Soon)</div>
+);
 
+// SelectorView Component
+const SelectorView = ({ elementData, setElementData }: { elementData: ElementData | null, setElementData: (data: ElementData | null) => void }) => {
+  const handleStopSelecting = () => {
+    chrome.runtime.sendMessage({ type: 'DEACTIVATE_INSPECTOR' });
+  };
+
+  const handleCopyCss = () => {
+    if (elementData?.styles) {
+      const fullCss = `${getReadableSelector(elementData)} {\n${formatCss(elementData.styles)}\n}`;
+      navigator.clipboard.writeText(fullCss);
+    }
+  };
+
+  const formatCss = (styles: Record<string, string>) => {
+    if (!styles) return '';
+    return Object.entries(styles)
+      .map(([key, value]) => `  ${key}: ${value};`)
+      .join('\n');
+  };
+
+  const getReadableSelector = (element: ElementData | null) => {
+    if (!element) return '';
+    const id = element.id ? `#${element.id}` : '';
+    const classes = element.classes ? `.${element.classes.trim().replace(/\s+/g, '.')}` : '';
+    return `${element.tag}${id}${classes}`;
+  };
+
+  return (
+    <div className="p-4 flex flex-col h-full">
+        <section className="space-y-3">
+            <Button onClick={handleStopSelecting} variant="destructive" className="w-full">
+                <Power className="mr-2 h-4 w-4" />
+                Stop Selecting
+            </Button>
+            <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setElementData(null)}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Clear
+                </Button>
+                <Button variant="outline" className="flex-1" onClick={handleCopyCss}>
+                  <Copy className="mr-2 h-4 w-4" /> Copy
+                </Button>
+            </div>
+        </section>
+
+        <section className="mt-6 flex-1 flex flex-col">
+          <h2 className="text-sm font-semibold text-muted-foreground mb-2">Selected Element CSS</h2>
+          <div className="flex-1 w-full rounded-md border border-input bg-card p-3 font-mono text-sm text-foreground overflow-auto">
+            {elementData ? (
+              <pre className="whitespace-pre-wrap">
+                {`${getReadableSelector(elementData)} {\n${formatCss(elementData.styles)}\n}`}
+              </pre>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                Click on an element to see its CSS.
+              </div>
+            )}
+          </div>
+        </section>
+    </div>
+  );
+};
+
+// Main Inspector Component
 function Inspector() {
-  const [activeTool, setActiveTool] = useState<Tool>('main');
+  const [activeTool, setActiveTool] = useState<Tool>('selector');
   const [elementData, setElementData] = useState<ElementData | null>(null);
-  const [inspectorActive, setInspectorActive] = useState(false);
 
-  // The rest of this file remains the same as the previous version...
-  // ... (useEffect, handlers, and renderActiveTool function)
-  
   useEffect(() => {
     const messageListener = (message: any) => {
       if (message.type === 'UPDATE_ELEMENT_DATA') {
         setElementData(message.data);
-        setInspectorActive(false); 
-      }
-      if (message.type === 'INSPECTOR_DEACTIVATED') {
-          setInspectorActive(false);
-          setActiveTool('main');
       }
     };
     chrome.runtime.onMessage.addListener(messageListener);
 
     chrome.runtime.sendMessage({ type: 'GET_LAST_ELEMENT_DATA' }, (response) => {
-      if (chrome.runtime.lastError) { return; }
-      if (response && response.data) { setElementData(response.data); }
-    });
-    
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].id) {
-            chrome.runtime.sendMessage({ type: 'GET_INSPECTOR_STATUS', tabId: tabs[0].id }, (response) => {
-                if (chrome.runtime.lastError) { return; }
-                if (response) { setInspectorActive(response.isActive); }
-            });
+        if (response && response.data) {
+            setElementData(response.data);
         }
     });
 
     return () => chrome.runtime.onMessage.removeListener(messageListener);
   }, []);
 
-  const handleToggleInspector = (forceState?: boolean) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].id) {
-        const newState = forceState ?? !inspectorActive;
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'SET_INSPECTOR_ACTIVE', isActive: newState, mode: activeTool });
-        setInspectorActive(newState);
-      }
-    });
-  };
-  
-  useEffect(() => {
-    const toolsRequiringInspector = ['selector', 'live-text-editor', 'delete-element'];
-    const shouldBeActive = toolsRequiringInspector.includes(activeTool);
-    
-    if (shouldBeActive && !inspectorActive) {
-      handleToggleInspector(true);
-    } else if (!shouldBeActive && inspectorActive) {
-      handleToggleInspector(false);
-    }
-  }, [activeTool]);
-
-  const handleToolSelect = (tool: string) => {
-    if (tool === 'screenshot') {
-      chrome.tabs.captureVisibleTab(null, {}, (dataUrl) => {
-        const link = document.createElement('a');
-        link.download = 'screenshot.png';
-        link.href = dataUrl;
-        link.click();
-      });
-      return;
-    }
-    setActiveTool(tool as Tool);
-  };
-  
-  const handleClose = () => {
-    if (inspectorActive) {
-        handleToggleInspector(false);
-    }
-    window.close();
-  };
-
   const renderActiveTool = () => {
     switch (activeTool) {
       case 'selector':
-        return (
-          <SelectorView
-            elementData={elementData}
-            inspectorActive={inspectorActive}
-            onToggleInspector={() => handleToggleInspector()}
-            setElementData={setElementData}
-          />
-        );
-      case 'live-text-editor':
-        return <LiveTextEditorView />;
-      case 'font-finder':
-        return <FontFinderView />;
-      case 'color-picker':
-        return <ColorPickerView />;
-      case 'delete-element':
-        return <DeleteElementView />;
+        return <SelectorView elementData={elementData} setElementData={setElementData} />;
       case 'generative-ai':
         return <GenerativeAIView elementData={elementData} />;
+      case 'font-finder':
+        return <FontFinderView />;
       case 'dashboard':
-          chrome.tabs.create({ url: 'index.html' });
-          return <div className="p-4 text-center text-muted-foreground">Opening dashboard...</div>;
+        return <div className="p-4 text-center text-muted-foreground">Dashboard (Coming Soon)</div>;
       case 'seeker':
         return <div className="p-4 text-center text-muted-foreground">Seeker (Coming Soon)</div>;
       default:
-        return <MainView onToolSelect={handleToolSelect} />;
+        return <SelectorView elementData={elementData} setElementData={setElementData} />;
     }
   };
 
   return (
-    <div className="w-[380px] h-[550px] bg-gray-900 text-gray-100 flex flex-col">
-      <header className="flex items-center justify-between gap-2 p-3 border-b border-gray-700 flex-shrink-0">
-        <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-r from-brand to-green-400 rounded-md flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-            </div>
-            <h1 className="text-md font-bold">AI CSS Inspector</h1>
+    <div className="w-[380px] h-screen bg-background text-foreground flex flex-col">
+      <header className="flex items-center gap-2 p-3 border-b border-border flex-shrink-0">
+        <div className="w-7 h-7 bg-gradient-to-r from-primary to-accent rounded-md flex items-center justify-center">
+          <Zap className="w-4 h-4 text-white" />
         </div>
-        <div>
-            {activeTool !== 'main' && (
-                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setActiveTool('main')}>
-                    <Home className="w-4 h-4" />
-                </Button>
-            )}
-            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={handleClose}>
-                <X className="w-4 h-4" />
-            </Button>
-        </div>
+        <h1 className="text-md font-bold">AI CSS Inspector</h1>
       </header>
-      <main className="flex-grow overflow-y-auto">
-        {renderActiveTool()}
-      </main>
+
+      <div className="flex flex-grow overflow-hidden">
+        <InspectorSidebar activeTool={activeTool} setActiveTool={setActiveTool} />
+        <main className="flex-grow overflow-y-auto flex flex-col">{renderActiveTool()}</main>
+      </div>
     </div>
   );
 }
-
 
 export default Inspector;

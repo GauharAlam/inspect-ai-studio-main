@@ -11,7 +11,7 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
-import InspectorToolbar from "./components/InspectorToolbar";
+// import InspectorToolbar from "./components/InspectorToolbar";
 
 const queryClient = new QueryClient();
 
@@ -19,7 +19,7 @@ const AppLayout = () => (
   <>
     <Header />
     <Outlet />
-    <InspectorToolbar />
+    {/* <InspectorToolbar /> */}
   </>
 );
 

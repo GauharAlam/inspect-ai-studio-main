@@ -1,24 +1,23 @@
 // src/components/inspector/InspectorSidebar.tsx
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Search, SlidersHorizontal, LayoutDashboard, Type, Sparkles, Palette } from 'lucide-react';
+import { Search, SlidersHorizontal, LayoutDashboard, Type, Sparkles } from 'lucide-react';
+import type { Tool } from '@/Inspector'; // <-- Yahan Tool type ko import kiya gaya hai
 
-type Tool = 'selector' | 'seeker' | 'dashboard' | 'font-finder' | 'generative-ai' | 'color-picker';
-
+// Sidebar ke props ki definition
 interface InspectorSidebarProps {
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
 }
 
-const tools = [
+// Sidebar ke saare tools ki list
+const tools: { id: Tool; icon: React.ElementType; label: string }[] = [
   { id: 'selector', icon: Search, label: 'Selector' },
   { id: 'seeker', icon: SlidersHorizontal, label: 'Seeker' },
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'font-finder', icon: Type, label: 'Font Finder' },
-  { id: 'color-picker', icon: Palette, label: 'Color Picker' }, // New Tool
   { id: 'generative-ai', icon: Sparkles, label: 'Generative AI' },
-] as const;
-
+];
 
 const InspectorSidebar: React.FC<InspectorSidebarProps> = ({ activeTool, setActiveTool }) => {
   return (
