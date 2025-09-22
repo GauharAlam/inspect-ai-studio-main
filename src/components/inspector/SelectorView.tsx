@@ -1,49 +1,16 @@
 // src/components/inspector/SelectorView.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Copy, Power } from 'lucide-react';
+import type { ElementData } from '@/Inspector';
 
-interface ElementData {
-  tag: string;
-  id: string;
-  classes: string;
-  styles: Record<string, string>;
+interface SelectorViewProps {
+  elementData: ElementData | null;
+  inspectorActive: boolean;
+  onToggleInspector: () => void;
 }
 
-const SelectorView = () => {
-  const [inspectorActive, setInspectorActive] = useState(false);
-  const [elementData, setElementData] = useState<ElementData | null>(null);
-
-  useEffect(() => {
-    const messageListener = (message: any) => {
-      if (message.type === 'update' && message.data) {
-        setElementData(message.data);
-      }
-      if (message.type === 'inspectorToggled') {
-        setInspectorActive(message.data.isEnabled);
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(messageListener);
-
-    chrome.runtime.sendMessage({ type: 'getInspectorStatus' }, (response) => {
-        if (chrome.runtime.lastError) return;
-        if (response) {
-            setInspectorActive(response.isEnabled);
-            if (response.lastData) {
-                setElementData(response.lastData);
-            }
-        }
-    });
-
-    return () => {
-      chrome.runtime.onMessage.removeListener(messageListener);
-    };
-  }, []);
-
-  const handleToggleInspector = () => {
-    chrome.runtime.sendMessage({ type: 'toggleInspector' });
-  };
+const SelectorView: React.FC<SelectorViewProps> = ({ elementData, inspectorActive, onToggleInspector }) => {
 
   const handleCopyCss = () => {
     if (elementData) {
@@ -57,7 +24,7 @@ const SelectorView = () => {
 
   return (
     <div className="p-4 flex flex-col h-full">
-      <Button onClick={handleToggleInspector} className="w-full mb-4" variant={inspectorActive ? 'destructive' : 'default'}>
+      <Button onClick={onToggleInspector} className="w-full mb-4" variant={inspectorActive ? 'destructive' : 'default'}>
         <Power className="w-4 h-4 mr-2" />
         {inspectorActive ? 'Stop Selecting' : 'Start Selecting Element'}
       </Button>
@@ -73,8 +40,8 @@ const SelectorView = () => {
         
         {elementData ? (
             <div className="font-mono text-xs space-y-1 text-muted-foreground">
-                <p><span className="text-primary">{elementData.tag}</span> {elementData.id !== 'N/A' && <span className="text-accent">#{elementData.id}</span>}</p>
-                <p>.<span className="text-secondary">{elementData.classes.replace(/, /g, '.')}</span></p>
+                <p><span className="text-primary">{elementData.tag}</span> {elementData.id && elementData.id !== 'N/A' && <span className="text-accent">#{elementData.id}</span>}</p>
+                {elementData.classes && <p>.<span className="text-secondary">{elementData.classes.replace(/ /g, '.')}</span></p>}
                 <p>{"{"}</p>
                 <div className="pl-4">
                     {Object.entries(elementData.styles).map(([key, value]) => (

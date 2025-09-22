@@ -15,7 +15,8 @@
     "default_title": "Toggle AI CSS Inspector",
     "default_icon": {
       "16": "icons/icon-default.png"
-    }
+    },
+    "default_popup": "inspector.html"
   },
   "background": {
     "service_worker": "background.js"

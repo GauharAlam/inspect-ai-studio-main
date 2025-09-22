@@ -1,28 +1,97 @@
-// src/Inspector.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import InspectorSidebar from './components/inspector/InspectorSidebar';
 import SelectorView from './components/inspector/SelectorView';
-import FontFinderView from './components/inspector/SelectorView'; // Import the new Font Finder view
+import GenerativeAIView from './components/inspector/GenerativeAIView';
 import { Zap } from 'lucide-react';
 import './index.css';
 
-// Yahan aap apne sabhi tools ke naam define kar sakte hain
+const FontFinderView = () => (
+  <div className="p-4 text-center text-muted-foreground">Font Finder (Coming Soon)</div>
+);
+
+export interface ElementData {
+  tag: string;
+  id: string | null;
+  classes: string | null;
+  styles: Record<string, string>;
+  html: string;
+}
+
 type Tool = 'selector' | 'seeker' | 'dashboard' | 'font-finder' | 'generative-ai';
 
 function Inspector() {
   const [activeTool, setActiveTool] = useState<Tool>('selector');
+  const [elementData, setElementData] = useState<ElementData | null>(null);
+  const [inspectorActive, setInspectorActive] = useState(false);
+
+  useEffect(() => {
+    const messageListener = (
+      message: any,
+      sender: chrome.runtime.MessageSender,
+      sendResponse: (response?: any) => void
+    ) => {
+      if (message.type === 'UPDATE_ELEMENT_DATA') {
+        console.log("Popup received element data:", message.data);
+        setElementData(message.data);
+        setInspectorActive(false);
+        setActiveTool('selector');
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+
+    chrome.runtime.sendMessage({ type: 'GET_INSPECTOR_STATUS' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error(chrome.runtime.lastError.message);
+        return;
+      }
+      if (response) {
+        setInspectorActive(response.isActive);
+      }
+    });
+
+    return () => chrome.runtime.onMessage.removeListener(messageListener);
+  }, []);
+
+  const handleToggleInspector = () => {
+    chrome.runtime.sendMessage({ type: 'TOGGLE_INSPECTOR' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error(chrome.runtime.lastError.message);
+        return;
+      }
+      if (response) {
+        console.log("Inspector toggled. Active:", response.isActive);
+        setInspectorActive(response.isActive);
+      }
+    });
+  };
 
   const renderActiveTool = () => {
     switch (activeTool) {
       case 'selector':
-        return <SelectorView />;
-      // Abhi ke liye dusre tools placeholder hain
-      case 'dashboard':
-        return <div className="p-4 text-center text-muted-foreground">Dashboard View (Coming Soon)</div>;
+        return (
+          <SelectorView
+            elementData={elementData}
+            inspectorActive={inspectorActive}
+            onToggleInspector={handleToggleInspector}
+          />
+        );
+      case 'generative-ai':
+        return <GenerativeAIView elementData={elementData} />;
       case 'font-finder':
-        return <div className="p-4 text-center text-muted-foreground">Font Finder (Coming Soon)</div>;
+        return <FontFinderView />;
+      case 'dashboard':
+        return <div className="p-4 text-center text-muted-foreground">Dashboard (Coming Soon)</div>;
+      case 'seeker':
+        return <div className="p-4 text-center text-muted-foreground">Seeker (Coming Soon)</div>;
       default:
-        return <SelectorView />;
+        return (
+          <SelectorView
+            elementData={elementData}
+            inspectorActive={inspectorActive}
+            onToggleInspector={handleToggleInspector}
+          />
+        );
     }
   };
 
@@ -34,12 +103,10 @@ function Inspector() {
         </div>
         <h1 className="text-md font-bold">AI CSS Inspector</h1>
       </header>
-      
+
       <div className="flex flex-grow overflow-hidden">
         <InspectorSidebar activeTool={activeTool} setActiveTool={setActiveTool} />
-        <main className="flex-grow overflow-y-auto">
-          {renderActiveTool()}
-        </main>
+        <main className="flex-grow overflow-y-auto">{renderActiveTool()}</main>
       </div>
     </div>
   );
