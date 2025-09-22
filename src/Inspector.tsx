@@ -1,3 +1,4 @@
+// src/Inspector.tsx
 import React, { useState, useEffect } from 'react';
 import InspectorSidebar from './components/inspector/InspectorSidebar';
 import SelectorView from './components/inspector/SelectorView';
@@ -25,21 +26,17 @@ function Inspector() {
   const [inspectorActive, setInspectorActive] = useState(false);
 
   useEffect(() => {
-    const messageListener = (
-      message: any,
-      sender: chrome.runtime.MessageSender,
-      sendResponse: (response?: any) => void
-    ) => {
+    const messageListener = (message: any) => {
       if (message.type === 'UPDATE_ELEMENT_DATA') {
-        console.log("Popup received element data:", message.data);
         setElementData(message.data);
-        setInspectorActive(false);
-        setActiveTool('selector');
+        setInspectorActive(false); // Turn off after selection
+        setActiveTool('selector'); // Switch back to selector view
       }
     };
 
     chrome.runtime.onMessage.addListener(messageListener);
 
+    // Get initial status when popup opens
     chrome.runtime.sendMessage({ type: 'GET_INSPECTOR_STATUS' }, (response) => {
       if (chrome.runtime.lastError) {
         console.error(chrome.runtime.lastError.message);
@@ -56,11 +53,10 @@ function Inspector() {
   const handleToggleInspector = () => {
     chrome.runtime.sendMessage({ type: 'TOGGLE_INSPECTOR' }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error(chrome.runtime.lastError.message);
+        console.error("Error toggling inspector:", chrome.runtime.lastError.message);
         return;
       }
       if (response) {
-        console.log("Inspector toggled. Active:", response.isActive);
         setInspectorActive(response.isActive);
       }
     });

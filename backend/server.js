@@ -5,8 +5,7 @@ import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
-// FIX: File extension .js add kiya gaya hai
-import authRoutes from './routes/auth.js'; 
+import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
 import paletteRoutes from './routes/palettes.js';
 import suggestionRoutes from './routes/suggestions.js';
@@ -17,10 +16,29 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+// FIX: Allow requests from the Chrome extension origin
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (origin && origin.startsWith('chrome-extension://')) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  }
+  next();
+});
+
 app.use(cors({
-  origin: 'http://localhost:8080', // Your frontend URL
+  origin: function (origin, callback) {
+    if (!origin || origin.startsWith('chrome-extension://') || origin === 'http://localhost:8080') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
+
 app.use(express.json());
 app.use(cookieParser());
 

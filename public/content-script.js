@@ -1,66 +1,88 @@
 // public/content-script.js
 
 let inspectorIsActive = false;
-let highlightEl; // Initialize ko function me le jayein
+let highlightEl = null;
 
-function initialize() {
-  if (document.getElementById('ai-css-inspector-highlight')) return; // Agar pahle se hai to dubara na banayein
-
-  highlightEl = document.createElement('div');
-  highlightEl.id = 'ai-css-inspector-highlight';
-  highlightEl.style.position = 'absolute';
-  highlightEl.style.backgroundColor = 'rgba(0, 123, 255, 0.2)';
-  highlightEl.style.border = '2px solid #007bff';
-  highlightEl.style.pointerEvents = 'none';
-  highlightEl.style.zIndex = '99999998';
-  highlightEl.style.transition = 'all 50ms ease';
-  document.body.appendChild(highlightEl);
-  highlightEl.style.display = 'none';
+function initializeHighlightElement() {
+  if (document.getElementById('ai-css-inspector-highlight')) {
+    highlightEl = document.getElementById('ai-css-inspector-highlight');
+  } else {
+    highlightEl = document.createElement('div');
+    highlightEl.id = 'ai-css-inspector-highlight';
+    document.body.appendChild(highlightEl);
+  }
+  
+  Object.assign(highlightEl.style, {
+    position: 'absolute',
+    backgroundColor: 'rgba(100, 180, 255, 0.3)',
+    border: '1px solid #64B4FF',
+    borderRadius: '3px',
+    pointerEvents: 'none',
+    zIndex: '99999999',
+    transition: 'all 50ms linear',
+    display: 'none'
+  });
 }
 
 function handleMouseMove(e) {
   if (!inspectorIsActive) return;
+
+  highlightEl.style.display = 'none';
   const element = document.elementFromPoint(e.clientX, e.clientY);
-  if (!element || element.id === 'ai-css-inspector-highlight') return;
+  highlightEl.style.display = 'block';
+
+  if (!element || element.id === 'ai-css-inspector-highlight' || element.tagName === 'BODY' || element.tagName === 'HTML') {
+    return;
+  }
   
   const rect = element.getBoundingClientRect();
-  highlightEl.style.width = `${rect.width}px`;
-  highlightEl.style.height = `${rect.height}px`;
-  highlightEl.style.top = `${rect.top + window.scrollY}px`;
-  highlightEl.style.left = `${rect.left + window.scrollX}px`;
+  Object.assign(highlightEl.style, {
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    top: `${rect.top + window.scrollY}px`,
+    left: `${rect.left + window.scrollX}px`
+  });
 }
 
 function handleClick(e) {
-    if (!inspectorIsActive) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
+  if (!inspectorIsActive) return;
+  
+  e.preventDefault();
+  e.stopPropagation();
 
-    const element = e.target;
-    const styles = window.getComputedStyle(element);
-    const stylesObject = {};
-    for (const prop of styles) {
-        stylesObject[prop] = styles.getPropertyValue(prop);
+  const element = e.target;
+  const computedStyles = window.getComputedStyle(element);
+  const stylesObject = {};
+  
+  const relevantProperties = [
+    'color', 'background-color', 'font-family', 'font-size', 'font-weight',
+    'line-height', 'text-align', 'width', 'height', 'padding', 'margin', 'border',
+    'border-radius', 'display', 'position', 'top', 'left', 'right', 'bottom',
+    'flex-direction', 'justify-content', 'align-items', 'gap', 'grid-template-columns'
+  ];
+
+  for (const prop of relevantProperties) {
+    const value = computedStyles.getPropertyValue(prop);
+    if (value) {
+      stylesObject[prop] = value;
     }
-    
-    const data = {
-        tag: element.tagName.toLowerCase(),
-        id: element.id || null,
-        classes: element.className || null,
-        html: element.outerHTML,
-        styles: stylesObject
-    };
-    
-    // Deactivate inspector first
-    deactivateInspector();
-
-    // Send data to background script
-    chrome.runtime.sendMessage({ type: 'update', data: data });
+  }
+  
+  const data = {
+    tag: element.tagName.toLowerCase(),
+    id: element.id || null,
+    classes: element.className || null,
+    html: element.outerHTML,
+    styles: stylesObject
+  };
+  
+  chrome.runtime.sendMessage({ type: 'ELEMENT_SELECTED', data: data });
 }
 
 function activateInspector() {
   if (inspectorIsActive) return;
   inspectorIsActive = true;
+  if (!highlightEl) initializeHighlightElement();
   highlightEl.style.display = 'block';
   document.addEventListener('mousemove', handleMouseMove, true);
   document.addEventListener('click', handleClick, true);
@@ -69,23 +91,22 @@ function activateInspector() {
 function deactivateInspector() {
   if (!inspectorIsActive) return;
   inspectorIsActive = false;
-  highlightEl.style.display = 'none';
+  if (highlightEl) {
+    highlightEl.style.display = 'none';
+  }
   document.removeEventListener('mousemove', handleMouseMove, true);
   document.removeEventListener('click', handleClick, true);
-  
-  // Inform background that inspector is now off
-  chrome.runtime.sendMessage({ type: 'inspectorToggled', data: { isEnabled: false } });
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'TOGGLE_INSPECTOR') {
-    if (request.isActive) {
-      activateInspector();
-    } else {
-      deactivateInspector();
-    }
+  if (request.type === 'SET_INSPECTOR_ACTIVE') {
+    request.isActive ? activateInspector() : deactivateInspector();
+    sendResponse({ success: true });
   }
 });
 
-// Run initialize when the script is injected
-initialize();
+if (document.readyState === "complete" || document.readyState === "interactive") {
+    initializeHighlightElement();
+} else {
+    document.addEventListener('DOMContentLoaded', initializeHighlightElement);
+}

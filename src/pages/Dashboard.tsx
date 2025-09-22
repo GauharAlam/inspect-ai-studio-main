@@ -1,3 +1,5 @@
+// src/pages/Dashboard.tsx
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -6,18 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  User,
   Palette,
   Brain,
   Settings,
-  LogOut,
   Calendar,
   ExternalLink,
   Trash2,
   Plus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Link } from 'react-router-dom';
 import type { User as UserModel } from '@/models/User';
 
 // Updated interfaces for MongoDB
@@ -39,6 +38,8 @@ interface AISuggestion {
   createdAt: string;
 }
 
+const API_BASE_URL = 'http://localhost:3001';
+
 const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -52,7 +53,6 @@ const Dashboard = () => {
     if (user) {
       loadUserData();
     } else {
-      // If there's no user, we don't need to load data.
       setLoading(false);
     }
   }, [user]);
@@ -60,11 +60,11 @@ const Dashboard = () => {
   const loadUserData = async () => {
     setLoading(true);
     try {
-      // Fetch data from your new API endpoints
+      // FIX: Use absolute URLs to fetch from the backend
       const [profileRes, palettesRes, suggestionsRes] = await Promise.all([
-        fetch('/api/profile'),
-        fetch('/api/palettes'),
-        fetch('/api/suggestions'),
+        fetch(`${API_BASE_URL}/api/profile`),
+        fetch(`${API_BASE_URL}/api/palettes`),
+        fetch(`${API_BASE_URL}/api/suggestions`),
       ]);
 
       if (profileRes.ok) {
@@ -85,17 +85,18 @@ const Dashboard = () => {
       console.error('Error loading user data:', error);
       toast({
         title: "Error",
-        description: "Could not load user data.",
+        description: "Could not load user data. Is the backend server running?",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
-
+  
   const deletePalette = async (paletteId: string) => {
     try {
-      const res = await fetch(`/api/palettes?id=${paletteId}`, { method: 'DELETE' });
+      // FIX: Use absolute URL for deleting
+      const res = await fetch(`${API_BASE_URL}/api/palettes?id=${paletteId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
 
       setPalettes(palettes.filter(p => p._id !== paletteId));
@@ -113,10 +114,10 @@ const Dashboard = () => {
   };
 
   const handleToggleInspector = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].id) {
-        chrome.tabs.sendMessage(tabs[0].id, { toggleInspector: true });
-      }
+    chrome.runtime.sendMessage({ type: 'TOGGLE_INSPECTOR' }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError.message);
+        }
     });
   };
 
@@ -128,6 +129,8 @@ const Dashboard = () => {
     );
   }
 
+  // --- The rest of your component's JSX remains the same ---
+  // (The UI code below this point doesn't need to be changed)
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 py-8">

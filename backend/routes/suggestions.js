@@ -1,13 +1,12 @@
+// backend/routes/suggestions.js
 import express from 'express';
 import auth from '../middleware/auth.js';
 import Suggestion from '../models/Suggestion.js';
-import fetch from 'node-fetch'; // node-fetch install karna hoga
+import fetch from 'node-fetch';
 
 const router = express.Router();
 
-// @route   GET api/suggestions
-// @desc    Get all AI suggestions for a user
-// @access  Private
+// ... (GET route remains the same)
 router.get('/', auth, async (req, res) => {
   try {
     const suggestions = await Suggestion.find({ user: req.user.id }).sort({ createdAt: -1 });
@@ -18,22 +17,24 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+
 // @route   POST api/suggestions/generate
 // @desc    Generate AI suggestions
 // @access  Private
 router.post('/generate', auth, async (req, res) => {
   const { elementHtml, elementCss, websiteUrl } = req.body;
 
-  // Gemini API key ko environment variables se lein
+  // FIX: Use the Gemini API key from environment variables
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (!geminiApiKey) {
     return res.status(500).json({ error: 'Gemini API key not configured on the server.' });
   }
 
-  const systemPrompt = `You are an expert web design and accessibility consultant...`; // Supabase function se prompt copy karein
+  const systemPrompt = `You are an expert web design and accessibility consultant...`; // Your full prompt here
 
   try {
-    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${AIzaSyD5pT3K8AY4GO_EVn5lwSktps1vHIwIBNw}`, {
+    // FIX: Use the variable for the API key in the URL
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -43,14 +44,15 @@ router.post('/generate', auth, async (req, res) => {
     });
 
     if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+      const errorBody = await geminiResponse.text();
+      throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorBody}`);
     }
 
     const geminiData = await geminiResponse.json();
     const aiResponseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!aiResponseText) {
-      throw new Error('No response from AI');
+      throw new Error('No valid response from AI');
     }
 
     const cleanedResponse = aiResponseText.replace(/```json\n?|\n?```/g, '').trim();
