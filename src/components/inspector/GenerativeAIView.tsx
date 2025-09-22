@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Wand2, AlertTriangle } from 'lucide-react';
 import type { ElementData } from '@/Inspector';
-import { useAuth } from '@/contexts/AuthContext'; // Auth context import karein
+import { useAuth } from '@/contexts/AuthContext';
 
 interface GenerativeAIViewProps {
   elementData: ElementData | null;
@@ -23,7 +23,7 @@ const GenerativeAIView: React.FC<GenerativeAIViewProps> = ({ elementData }) => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth(); // User ki authentication state prapt karein
+  const { user } = useAuth();
 
   const getCategoryVariant = (category: SuggestionCategory) => {
     switch (category) {
@@ -58,15 +58,15 @@ const GenerativeAIView: React.FC<GenerativeAIViewProps> = ({ elementData }) => {
     try {
       const response = await fetch('http://localhost:3001/api/suggestions/generate', {
         method: 'POST',
+        // 👇 YEH SABSE IMPORTANT CHANGE HAI
+        credentials: 'include', // Isse login cookie request ke saath jayegi
         headers: {
           'Content-Type': 'application/json',
-          // Agar aapka auth middleware token expect karta hai, to use yahan bhejein.
-          // Is example me, cookie-based auth maan rahe hain.
         },
         body: JSON.stringify({
           elementHtml: elementData.html,
           elementCss: elementData.styles,
-          websiteUrl: window.location.href,
+          websiteUrl: window.location.href, // Note: This will be the extension's URL, not the page's. Needs to be passed from content script if needed.
         }),
       });
 

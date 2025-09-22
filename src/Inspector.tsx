@@ -26,38 +26,57 @@ function Inspector() {
   const [inspectorActive, setInspectorActive] = useState(false);
 
   useEffect(() => {
+    // Live updates ke liye listener (agar popup khula ho to)
     const messageListener = (message: any) => {
       if (message.type === 'UPDATE_ELEMENT_DATA') {
         setElementData(message.data);
-        setInspectorActive(false); // Turn off after selection
-        setActiveTool('selector'); // Switch back to selector view
+        setInspectorActive(false);
+        setActiveTool('selector');
       }
     };
-
     chrome.runtime.onMessage.addListener(messageListener);
 
-    // Get initial status when popup opens
-    chrome.runtime.sendMessage({ type: 'GET_INSPECTOR_STATUS' }, (response) => {
+    // Popup khulte hi, background script se last selected data maangein
+    chrome.runtime.sendMessage({ type: 'GET_LAST_ELEMENT_DATA' }, (response) => {
       if (chrome.runtime.lastError) {
         console.error(chrome.runtime.lastError.message);
         return;
       }
-      if (response) {
-        setInspectorActive(response.isActive);
+      if (response && response.data) {
+        setElementData(response.data);
       }
+    });
+
+    // Inspector ka initial status lein
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0] && tabs[0].id) {
+            chrome.runtime.sendMessage({ type: 'GET_INSPECTOR_STATUS', tabId: tabs[0].id }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError.message);
+                    return;
+                }
+                if (response) {
+                    setInspectorActive(response.isActive);
+                }
+            });
+        }
     });
 
     return () => chrome.runtime.onMessage.removeListener(messageListener);
   }, []);
 
   const handleToggleInspector = () => {
-    chrome.runtime.sendMessage({ type: 'TOGGLE_INSPECTOR' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error("Error toggling inspector:", chrome.runtime.lastError.message);
-        return;
-      }
-      if (response) {
-        setInspectorActive(response.isActive);
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0] && tabs[0].id) {
+        chrome.runtime.sendMessage({ type: 'TOGGLE_INSPECTOR', tabId: tabs[0].id }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error("Error toggling inspector:", chrome.runtime.lastError.message);
+            return;
+          }
+          if (response) {
+            setInspectorActive(response.isActive);
+          }
+        });
       }
     });
   };

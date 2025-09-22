@@ -1,5 +1,7 @@
 // public/content-script.js
 
+window.aiCssInspectorInjected = true; 
+
 let inspectorIsActive = false;
 let highlightEl = null;
 
@@ -11,7 +13,7 @@ function initializeHighlightElement() {
     highlightEl.id = 'ai-css-inspector-highlight';
     document.body.appendChild(highlightEl);
   }
-  
+
   Object.assign(highlightEl.style, {
     position: 'absolute',
     backgroundColor: 'rgba(100, 180, 255, 0.3)',
@@ -34,7 +36,7 @@ function handleMouseMove(e) {
   if (!element || element.id === 'ai-css-inspector-highlight' || element.tagName === 'BODY' || element.tagName === 'HTML') {
     return;
   }
-  
+
   const rect = element.getBoundingClientRect();
   Object.assign(highlightEl.style, {
     width: `${rect.width}px`,
@@ -46,14 +48,16 @@ function handleMouseMove(e) {
 
 function handleClick(e) {
   if (!inspectorIsActive) return;
-  
+
   e.preventDefault();
   e.stopPropagation();
 
   const element = e.target;
   const computedStyles = window.getComputedStyle(element);
   const stylesObject = {};
-  
+
+  // **THEEK KIYA GAYA CODE**
+  // Yeh relevant CSS properties ki list hai
   const relevantProperties = [
     'color', 'background-color', 'font-family', 'font-size', 'font-weight',
     'line-height', 'text-align', 'width', 'height', 'padding', 'margin', 'border',
@@ -61,26 +65,29 @@ function handleClick(e) {
     'flex-direction', 'justify-content', 'align-items', 'gap', 'grid-template-columns'
   ];
 
+  // Yeh loop ab CSS properties ko stylesObject mein daalega
   for (const prop of relevantProperties) {
     const value = computedStyles.getPropertyValue(prop);
     if (value) {
       stylesObject[prop] = value;
     }
   }
-  
+  // **YAHA TAK**
+
   const data = {
     tag: element.tagName.toLowerCase(),
     id: element.id || null,
     classes: element.className || null,
     html: element.outerHTML,
-    styles: stylesObject
+    styles: stylesObject // Ab ismein CSS properties bhi hain
   };
-  
+
+  console.log('Element selected:', data);
   chrome.runtime.sendMessage({ type: 'ELEMENT_SELECTED', data: data });
 }
 
 function activateInspector() {
-  if (inspectorIsActive) return;
+  console.log('Activating inspector...');
   inspectorIsActive = true;
   if (!highlightEl) initializeHighlightElement();
   highlightEl.style.display = 'block';
@@ -89,7 +96,7 @@ function activateInspector() {
 }
 
 function deactivateInspector() {
-  if (!inspectorIsActive) return;
+  console.log('Deactivating inspector...');
   inspectorIsActive = false;
   if (highlightEl) {
     highlightEl.style.display = 'none';
@@ -99,6 +106,7 @@ function deactivateInspector() {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Content script received message:', request);
   if (request.type === 'SET_INSPECTOR_ACTIVE') {
     request.isActive ? activateInspector() : deactivateInspector();
     sendResponse({ success: true });
@@ -106,7 +114,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 if (document.readyState === "complete" || document.readyState === "interactive") {
-    initializeHighlightElement();
+  initializeHighlightElement();
 } else {
-    document.addEventListener('DOMContentLoaded', initializeHighlightElement);
+  document.addEventListener('DOMContentLoaded', initializeHighlightElement);
 }
+
+console.log('AI CSS Inspector content script loaded.');

@@ -15,7 +15,7 @@ const SelectorView: React.FC<SelectorViewProps> = ({ elementData, inspectorActiv
   const handleCopyCss = () => {
     if (elementData) {
       const cssString = Object.entries(elementData.styles)
-        .map(([key, value]) => `${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value};`)
+        .map(([key, value]) => `${key}: ${value};`)
         .join('\n');
       navigator.clipboard.writeText(cssString);
       // Optional: Add a toast notification for copy success
@@ -40,13 +40,13 @@ const SelectorView: React.FC<SelectorViewProps> = ({ elementData, inspectorActiv
         
         {elementData ? (
             <div className="font-mono text-xs space-y-1 text-muted-foreground">
-                <p><span className="text-primary">{elementData.tag}</span> {elementData.id && elementData.id !== 'N/A' && <span className="text-accent">#{elementData.id}</span>}</p>
+                <p><span className="text-primary">{elementData.tag}</span> {elementData.id && `#${elementData.id}`}</p>
                 {elementData.classes && <p>.<span className="text-secondary">{elementData.classes.replace(/ /g, '.')}</span></p>}
                 <p>{"{"}</p>
                 <div className="pl-4">
                     {Object.entries(elementData.styles).map(([key, value]) => (
                         <p key={key}>
-                            <span className="text-primary-glow">{key.replace(/([A-Z])/g, '-$1').toLowerCase()}</span>: <span className="text-foreground">{value}</span>;
+                            <span className="text-primary-glow">{key}</span>: <span className="text-foreground">{value}</span>;
                         </p>
                     ))}
                 </div>
