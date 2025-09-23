@@ -113,10 +113,17 @@ const Dashboard = () => {
     }
   };
 
-  const handleToggleInspector = () => {
+ const handleToggleInspector = () => {
+    // This will toggle the inspector ON with the 'selector' tool
+    // or toggle it OFF if it was already on.
     chrome.runtime.sendMessage({ type: 'TOGGLE_INSPECTOR' }, (response) => {
         if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError.message);
+            toast({
+                title: "Could not communicate with content script.",
+                description: "Please refresh the page you want to inspect and try again.",
+                variant: "destructive"
+            });
         }
     });
   };

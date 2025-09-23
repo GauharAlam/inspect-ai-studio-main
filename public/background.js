@@ -1,7 +1,14 @@
 // public/background.js
 
-const tabInspectorState = {};
+const tabState = {};
 let lastElementData = null;
+
+function getTabState(tabId) {
+  if (!tabState[tabId]) {
+    tabState[tabId] = { isActive: false, tool: null };
+  }
+  return tabState[tabId];
+}
 
 function setActionIcon(tabId, isActive) {
   const path = isActive ? 'icons/icon-active.png' : 'icons/icon-default.png';
@@ -25,47 +32,68 @@ async function ensureScriptInjected(tabId) {
   }
 }
 
-async function toggleInspector(tabId, forceState) {
-    const currentState = !!tabInspectorState[tabId];
-    const newState = forceState !== undefined ? forceState : !currentState;
+async function setInspectorState(tabId, isActive, tool = null) {
+  const state = getTabState(tabId);
+  if (state.isActive === isActive && state.tool === tool) return;
 
-    if (currentState === newState) return; // No change needed
+  state.isActive = isActive;
+  state.tool = isActive ? tool : null;
+  setActionIcon(tabId, isActive);
 
-    tabInspectorState[tabId] = newState;
-    setActionIcon(tabId, newState);
-
-    await ensureScriptInjected(tabId);
-    chrome.tabs.sendMessage(tabId, { type: 'SET_INSPECTOR_ACTIVE', isActive: newState });
+  await ensureScriptInjected(tabId);
+  chrome.tabs.sendMessage(tabId, { type: 'SET_INSPECTOR_STATE', isActive, tool });
+  chrome.runtime.sendMessage({ type: 'INSPECTOR_STATUS_CHANGED', isActive });
 }
 
-// Extension icon click karne par
+// Extension icon click toggles the main selector tool
 chrome.action.onClicked.addListener((tab) => {
   if (tab.id) {
-    toggleInspector(tab.id);
+    const state = getTabState(tab.id);
+    // If it's off, turn it on with the selector. If it's on, turn it off.
+    const newActiveState = !state.isActive;
+    const tool = newActiveState ? 'selector' : null;
+    setInspectorState(tab.id, newActiveState, tool);
   }
 });
 
-// User ke tab badalne par icon update karein
+// Update icon when tab is changed
 chrome.tabs.onActivated.addListener(activeInfo => {
-    setActionIcon(activeInfo.tabId, !!tabInspectorState[activeInfo.tabId]);
+    const state = getTabState(activeInfo.tabId);
+    setActionIcon(activeInfo.tabId, state.isActive);
 });
 
-// Alag-alag scripts se messages handle karein
+// Handle messages from UI and content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const tabId = sender.tab?.id;
 
-    if (request.type === 'ELEMENT_SELECTED') {
-        lastElementData = request.data;
-        // Data ko UI panel mein bhejein
-        chrome.runtime.sendMessage({ type: 'UPDATE_ELEMENT_DATA', data: lastElementData });
-        sendResponse({ success: true });
-    } else if (request.type === 'DEACTIVATE_INSPECTOR' && tabId) {
-        // Jab UI panel se "Stop Selecting" click ho
-        toggleInspector(tabId, false);
-        sendResponse({ success: true });
-    } else if (request.type === 'GET_LAST_ELEMENT_DATA') {
-        sendResponse({ data: lastElementData });
+    switch (request.type) {
+        case 'ACTIVATE_TOOL':
+            if (tabId) {
+                const isActive = request.tool !== null;
+                setInspectorState(tabId, isActive, request.tool);
+            }
+            break;
+        case 'ELEMENT_SELECTED':
+            lastElementData = request.data;
+            chrome.runtime.sendMessage({ type: 'UPDATE_ELEMENT_DATA', data: lastElementData });
+            break;
+        case 'GET_LAST_ELEMENT_DATA':
+            sendResponse({ data: lastElementData });
+            break;
+        case 'GET_INSPECTOR_STATUS':
+            if (tabId) {
+                sendResponse(getTabState(tabId));
+            }
+            break;
+        // Handlers for new features
+        case 'GET_COLOR_PALETTE':
+        case 'GET_FONT_LIST':
+            if (tabId) {
+                chrome.tabs.sendMessage(tabId, request, (response) => {
+                    sendResponse(response);
+                });
+            }
+            return true; // Indicates async response
     }
-    
-    return true; // Async response ke liye zaroori
+    return true; 
 });
