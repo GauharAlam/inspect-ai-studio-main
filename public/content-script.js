@@ -1,33 +1,32 @@
-// public/content-script.js
 
 if (typeof window.aiCssInspectorInjected === 'undefined') {
   window.aiCssInspectorInjected = true;
 
+  // --- State Variables ---
   let inspectorActive = false;
   let activeTool = null;
   let highlightEl = null;
   let tooltipEl = null;
   let panelIframe = null;
+  let dragHandle = null; 
   let lastHoveredElement = null;
   let isEditingText = false;
+  let panelState = { x: 0, y: 0, width: 340, height: '600px', isMinimized: false };
 
   const IFRAME_ID = 'ai-css-inspector-panel-iframe';
+  const DRAG_HANDLE_ID = 'ai-css-inspector-drag-handle';
+  const HEADER_HEIGHT = '57px';
 
-  // --- Element Creation (No changes here) ---
+  // --- Element Creation ---
   function createInspectorElements() {
     if (!document.getElementById('ai-css-inspector-highlight')) {
         highlightEl = document.createElement('div');
         highlightEl.id = 'ai-css-inspector-highlight';
         Object.assign(highlightEl.style, {
-            position: 'absolute',
-            backgroundColor: 'rgba(239, 68, 68, 0.05)',
-            border: '1px solid #EF4444',
-            outline: '1px solid rgba(255, 255, 255, 0.5)',
-            pointerEvents: 'none',
-            zIndex: '2147483645',
-            display: 'none',
-            boxSizing: 'border-box',
-            transition: 'all 50ms linear'
+            position: 'absolute', backgroundColor: 'rgba(239, 68, 68, 0.05)',
+            border: '1px solid #EF4444', outline: '1px solid rgba(255, 255, 255, 0.5)',
+            pointerEvents: 'none', zIndex: '2147483645', display: 'none',
+            boxSizing: 'border-box', transition: 'all 50ms linear'
         });
         document.body.appendChild(highlightEl);
     }
@@ -35,21 +34,12 @@ if (typeof window.aiCssInspectorInjected === 'undefined') {
         tooltipEl = document.createElement('div');
         tooltipEl.id = 'ai-css-inspector-tooltip';
         Object.assign(tooltipEl.style, {
-            position: 'absolute',
-            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-            color: '#E5E7EB',
-            border: '1px solid #4B5563',
-            borderRadius: '6px',
-            padding: '10px',
-            fontFamily: `ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif`,
-            fontSize: '13px',
-            pointerEvents: 'none',
-            zIndex: '2147483646',
-            display: 'none',
-            lineHeight: '1.6',
-            maxWidth: '350px',
-            wordWrap: 'break-word',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+            position: 'absolute', backgroundColor: 'rgba(17, 24, 39, 0.95)',
+            color: '#E5E7EB', border: '1px solid #4B5563', borderRadius: '6px',
+            padding: '10px', fontFamily: `ui-sans-serif, system-ui, sans-serif`,
+            fontSize: '13px', pointerEvents: 'none', zIndex: '2147483646',
+            display: 'none', lineHeight: '1.6', maxWidth: '350px',
+            wordWrap: 'break-word', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
         });
         document.body.appendChild(tooltipEl);
     }
@@ -57,22 +47,84 @@ if (typeof window.aiCssInspectorInjected === 'undefined') {
   
   function createPanel() {
       if (document.getElementById(IFRAME_ID)) return;
+      
       panelIframe = document.createElement('iframe');
       panelIframe.id = IFRAME_ID;
       panelIframe.src = chrome.runtime.getURL('inspector.html');
       Object.assign(panelIframe.style, {
-          position: 'fixed', top: '0', right: '0', width: '380px', height: '100%',
-          border: 'none', zIndex: '2147483647', boxShadow: '-5px 0px 15px rgba(0,0,0,0.2)'
+          position: 'fixed', top: '10px', right: '10px', 
+          width: `${panelState.width}px`, 
+          height: panelState.isMinimized ? HEADER_HEIGHT : panelState.height,
+          maxHeight: '90vh',
+          // ⭐️ Changes for Transparency ⭐️
+          backgroundColor: 'transparent', 
+          border: 'none', // Remove border for a cleaner look
+          zIndex: '2147483647', 
+          boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+          overflow: 'hidden', 
+          transition: 'height 0.2s ease-in-out'
       });
       document.body.appendChild(panelIframe);
+
+      dragHandle = document.createElement('div');
+      dragHandle.id = DRAG_HANDLE_ID;
+      Object.assign(dragHandle.style, {
+          position: 'fixed', top: panelIframe.style.top, right: panelIframe.style.right,
+          width: `${panelState.width}px`, height: HEADER_HEIGHT,
+          zIndex: '2147483648', cursor: 'move', userSelect: 'none'
+      });
+      document.body.appendChild(dragHandle);
+      
+      makeDraggable(dragHandle, panelIframe);
   }
 
   function removePanel() {
-      const iframe = document.getElementById(IFRAME_ID);
-      if (iframe) iframe.remove();
-      if (tooltipEl) tooltipEl.style.display = 'none';
-      panelIframe = null;
+      [IFRAME_ID, DRAG_HANDLE_ID, 'ai-css-inspector-tooltip', 'ai-css-inspector-highlight'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.remove();
+      });
+      panelIframe = null; dragHandle = null; tooltipEl = null; highlightEl = null;
   }
+  
+  function makeDraggable(handle, target) {
+    let offsetX = 0, offsetY = 0, isDragging = false;
+    handle.onmousedown = (e) => {
+        isDragging = true;
+        const rect = target.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp, { once: true });
+    };
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        let newX = e.clientX - offsetX;
+        let newY = e.clientY - offsetY;
+        target.style.left = `${newX}px`;
+        target.style.top = `${newY}px`;
+        handle.style.left = `${newX}px`;
+        handle.style.top = `${newY}px`;
+        target.style.right = 'auto';
+        target.style.bottom = 'auto';
+        handle.style.right = 'auto';
+        handle.style.bottom = 'auto';
+    }
+    function onMouseUp() {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+    }
+  }
+
+  function minimizePanel() {
+      panelState.isMinimized = true;
+      if (panelIframe) panelIframe.style.height = HEADER_HEIGHT;
+  }
+  
+  function restorePanel() {
+      panelState.isMinimized = false;
+      if (panelIframe) panelIframe.style.height = panelState.height;
+  }
+
   
   const getReadableSelector = (element) => {
     if (!element) return '';
@@ -279,6 +331,7 @@ if (typeof window.aiCssInspectorInjected === 'undefined') {
     });
     return Array.from(fonts);
   }
+  
   const activateInspector = (tool) => {
     inspectorActive = true;
     activeTool = tool;
@@ -287,16 +340,16 @@ if (typeof window.aiCssInspectorInjected === 'undefined') {
     document.addEventListener('mousemove', handleMouseMove, true);
     document.addEventListener('click', handleClick, true);
   };
+
   const deactivateInspector = () => {
     inspectorActive = false;
     activeTool = null;
-    if (highlightEl) highlightEl.style.display = 'none';
-    if (tooltipEl) tooltipEl.style.display = 'none';
     removePanel();
     document.removeEventListener('mousemove', handleMouseMove, true);
     document.removeEventListener('click', handleClick, true);
   };
   
+  // --- Updated Message Listener ---
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.type) {
         case 'SET_INSPECTOR_STATE':
@@ -306,6 +359,13 @@ if (typeof window.aiCssInspectorInjected === 'undefined') {
                 deactivateInspector();
             }
             break;
+        case 'MINIMIZE_PANEL':
+            minimizePanel();
+            break;
+        case 'RESTORE_PANEL':
+            restorePanel();
+            break;
+        // ... other cases remain the same
         case 'GET_COLOR_PALETTE':
             sendResponse({ type: 'COLOR_PALETTE', data: getPageColors() });
             break;
