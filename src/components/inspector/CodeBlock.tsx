@@ -14,7 +14,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code }) => {
     return lines.map((line, index) => {
       line = line.trim();
       if (line.endsWith('{')) {
-        // Selector line
+        // Selector line - colored red
         return <div key={index}><span className="text-red-400">{line.replace('{', '')}</span>{"{"}</div>;
       }
       if (line.endsWith('}')) {
@@ -28,7 +28,10 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code }) => {
         const value = parts.slice(1).join(':').trim();
         return (
           <div key={index} className="pl-4">
-            <span className="text-cyan-400">{property}</span>: <span className="text-amber-300">{value}</span>
+            {/* Property - colored cyan */}
+            <span className="text-cyan-400">{property}</span>: 
+            {/* Value - colored amber */}
+            <span className="text-amber-300">{value}</span>
           </div>
         );
       }

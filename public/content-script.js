@@ -1,4 +1,3 @@
-
 if (typeof window.aiCssInspectorInjected === 'undefined') {
   window.aiCssInspectorInjected = true;
 
@@ -11,11 +10,12 @@ if (typeof window.aiCssInspectorInjected === 'undefined') {
   let dragHandle = null; 
   let lastHoveredElement = null;
   let isEditingText = false;
-  let panelState = { x: 0, y: 0, width: 340, height: '600px', isMinimized: false };
+  // FIX: Updated panel width from 340 to 380 to match the content width
+  let panelState = { x: 0, y: 0, width: 380, height: '600px', isMinimized: false };
 
   const IFRAME_ID = 'ai-css-inspector-panel-iframe';
   const DRAG_HANDLE_ID = 'ai-css-inspector-drag-handle';
-  const HEADER_HEIGHT = '57px';
+  const HEADER_HEIGHT = '57px';ADER_HEIGHT = '57px';
 
   // --- Element Creation ---
   function createInspectorElements() {
